@@ -20,6 +20,7 @@
 #include <vtkDataSetSurfaceFilter.h>
 #include <vtkCallbackCommand.h>
 #include <vtkCamera.h>
+#include <vtkCommand.h>
 
 #include <iostream>
 #include <vector>
@@ -33,6 +34,10 @@ using namespace std;
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 #include <Eigen/IterativeLinearSolvers>
+
+#include <App/CustomTrackballStyle.h>
+
+#include <Debugging/VisualDebugging.h>
 
 chrono::steady_clock::time_point Now()
 {
@@ -141,13 +146,13 @@ void OnKeyPress(vtkObject* caller, long unsigned int eventId, void* clientData, 
         vtkRenderer* renderer = static_cast<vtkRenderer*>(clientData);
 
         vtkCamera* camera = renderer->GetActiveCamera();
+        renderer->ResetCamera();
 
         // Reset the camera position, focal point, and view up vector to their defaults
         camera->SetPosition(0, 0, 1);          // Reset position to default
         camera->SetFocalPoint(0, 0, 0);        // Reset focal point to origin
         camera->SetViewUp(0, 1, 0);            // Reset the up vector to default (Y-axis up)
 
-        renderer->ResetCamera();
         interactor->Render(); // Render after camera reset
     }
     else if (key == "Escape") {
@@ -155,6 +160,31 @@ void OnKeyPress(vtkObject* caller, long unsigned int eventId, void* clientData, 
         interactor->TerminateApp();
     }
 }
+
+class TimerCallback : public vtkCommand
+{
+public:
+    static TimerCallback* New() { return new TimerCallback; }
+
+    TimerCallback() = default;
+
+    virtual void Execute(vtkObject* caller, unsigned long eventId, void* vtkNotUsed(callData)) override
+        //virtual void Execute(vtkObject *vtkNotUsed(caller),
+        //                     unsigned long vtkNotUsed(eventId),
+        //                     void *vtkNotUsed(callData)) override
+    {
+        if (eventId == vtkCommand::TimerEvent) {
+            animate();
+        }
+        else {
+            std::cerr << "Unexpected event ID: " << eventId << std::endl;
+        }
+    }
+
+private:
+    void animate() { VisualDebugging::Update(); }
+};
+
 
 int main() {
     openvdb::initialize();
@@ -170,9 +200,18 @@ int main() {
     renderWindow->AddRenderer(renderer);
 
     vtkSmartPointer<vtkRenderWindowInteractor> interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
-    vtkNew<vtkInteractorStyleTrackballCamera> trackballStyle;
-    interactor->SetInteractorStyle(trackballStyle);
+    //vtkNew<vtkInteractorStyleTrackballCamera> trackballStyle;
+    //interactor->SetInteractorStyle(trackballStyle);
+    vtkNew<CustomTrackballStyle> customTrackballStyle;
+    interactor->SetInteractorStyle(customTrackballStyle);
     interactor->SetRenderWindow(renderWindow);
+    interactor->Initialize();
+
+    VisualDebugging::Initialize(renderer);
+
+    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 100, 0, 0 }, 255, 0, 0);
+    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 100, 0 }, 0, 255, 0);
+    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 0, 100 }, 0, 0, 255);
 
     // Maximize VTK rendering window on 2nd monitor
     MaximizeVTKWindowOnMonitor(renderWindow, 2); // Monitor index starts from 0
@@ -195,16 +234,34 @@ int main() {
         renderer->AddActor(actor);
     }
 
+    {
+        for (size_t i = 0; i < inputPoints->GetNumberOfPoints(); i++)
+        {
+            auto p = inputPoints->GetPoint(i);
+            VisualDebugging::AddSphere("Spheres", { (float)p[0], (float)p[1], (float)p[2] }, { 1, 1, 1 }, { 0, 0, 0 }, 255, 255, 255);
+        }
+    }
+
     // Create a key press event handler
     vtkSmartPointer<vtkCallbackCommand> keyPressCallback = vtkSmartPointer<vtkCallbackCommand>::New();
     keyPressCallback->SetCallback(OnKeyPress);
     keyPressCallback->SetClientData(renderer); // Pass the renderer to the callback
+
+    vtkSmartPointer<TimerCallback> timerCallback = vtkSmartPointer<TimerCallback>::New();
+
+    interactor->AddObserver(vtkCommand::TimerEvent, timerCallback);
+    int timerId = interactor->CreateRepeatingTimer(16);
+    if (timerId < 0) {
+        std::cerr << "Error: Timer was not created!" << std::endl;
+    }
 
     // Add the observer to the interactor to listen for key presses
     interactor->AddObserver(vtkCommand::KeyPressEvent, keyPressCallback);
 
     renderWindow->Render();
     interactor->Start();
+
+    VisualDebugging::Terminate();
 
     return 0;
 }

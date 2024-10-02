@@ -16,23 +16,21 @@ find_package(CUDAToolkit REQUIRED)  # Use the modern way of finding CUDA
 
 enable_language(CUDA)
 
-# Uncomment if needed for VTK
-#find_package(SVO COMPONENTS 
-#  CommonColor
-#  CommonCore
-#  CommonDataModel
-#  FiltersCore
-#  FiltersGeneral
-#  ImagingHybrid
-#  InteractionStyle
-#  RenderingContextOpenGL2
-#  RenderingCore
-#  RenderingFreeType
-#  RenderingGL2PSOpenGL2
-#  RenderingOpenGL2
-#)
+set(source_list
+    src/main.cpp
+    src/App/CustomTrackballStyle.h
+    src/App/CustomTrackballStyle.cpp
+    src/Debugging/VisualDebugging.h
+    src/Debugging/VisualDebugging.cpp
+    src/Debugging/VisualDebuggingLayer.h
+    src/Debugging/VisualDebuggingLayer.cpp
+    src/Debugging/vtkPolygonalFrustumSource.h
+    src/Debugging/vtkPolygonalFrustumSource.cxx
+)
 
-add_executable(SVO main.cpp)
+add_executable(SVO
+    ${source_list}
+)
 
 if(MSVC)
     set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT SVO)
@@ -43,6 +41,8 @@ set(VTK_INCLUDE_DIR ${Z_VCPKG_ROOT_DIR}/installed/x64-windows/include/vtk-9.3)
 set(VTK_INCLUDE_DIRS ${Z_VCPKG_ROOT_DIR}/installed/x64-windows/include/vtk-9.3)
 
 target_include_directories(SVO PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
     "External"
     "External/eigen"
     ${OPENVDB_INCLUDE_DIRS}
@@ -64,3 +64,18 @@ vtk_module_autoinit(
     TARGETS SVO
     MODULES ${VTK_LIBRARIES}
 )
+
+function(assign_source_group)
+    foreach(_source IN ITEMS ${ARGN})
+        if (IS_ABSOLUTE "${_source}")
+            file(RELATIVE_PATH _source_rel "${CMAKE_CURRENT_SOURCE_DIR}" "${_source}")
+        else()
+            set(_source_rel "${_source}")
+        endif()
+        get_filename_component(_source_path "${_source_rel}" PATH)
+        string(REPLACE "/" "\\" _source_path_msvc "${_source_path}")
+        source_group("${_source_path_msvc}" FILES "${_source}")
+    endforeach()
+endfunction(assign_source_group)
+
+assign_source_group(${source_list})
