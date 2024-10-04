@@ -11,6 +11,27 @@ void VisualDebuggingLayer::Initialize(vtkSmartPointer<vtkRenderer> renderer)
 	this->renderer = renderer;
 	renderWindow = renderer->GetRenderWindow();
 
+#pragma region Point
+	{
+		pointPolyData = vtkSmartPointer<vtkPolyData>::New();
+		pointPolyDataMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+		pointPolyDataMapper->SetInputData(pointPolyData);
+		pointPolyDataMapper->SetScalarModeToUsePointData();
+		pointActor = vtkSmartPointer<vtkActor>::New();
+		pointActor->SetMapper(linePolyDataMapper);
+		pointActor->SetObjectName(layerName + ".pointActor");
+
+		vtkNew<vtkPoints> points;
+		pointPolyData->SetPoints(points);
+
+		vtkNew<vtkUnsignedCharArray> colors;
+		colors->SetNumberOfComponents(3);
+		pointPolyData->GetCellData()->SetScalars(colors);
+
+		renderer->AddActor(pointActor);
+	}
+#pragma endregion
+
 #pragma region Line
 	{
 		linePolyData = vtkSmartPointer<vtkPolyData>::New();
@@ -19,7 +40,7 @@ void VisualDebuggingLayer::Initialize(vtkSmartPointer<vtkRenderer> renderer)
 		linePolyDataMapper->SetScalarModeToUsePointData();
 		lineActor = vtkSmartPointer<vtkActor>::New();
 		lineActor->SetMapper(linePolyDataMapper);
-		lineActor->GetProperty()->SetLineWidth(5);
+		//lineActor->GetProperty()->SetLineWidth(5);
 		lineActor->SetObjectName(layerName + ".lineActor");
 
 		vtkNew<vtkPoints> points;
@@ -73,7 +94,6 @@ void VisualDebuggingLayer::Initialize(vtkSmartPointer<vtkRenderer> renderer)
 		spherePolyData->GetPointData()->AddArray(colors);
 
 		vtkNew<vtkDoubleArray> scales;
-		scales->SetNumberOfComponents(1);
 		scales->SetName("Scales");
 		scales->SetNumberOfComponents(3);
 		spherePolyData->GetPointData()->AddArray(scales);
@@ -215,7 +235,7 @@ void VisualDebuggingLayer::Initialize(vtkSmartPointer<vtkRenderer> renderer)
 		arrowPolyData->SetPoints(points);
 
 		vtkNew<vtkDoubleArray> scales;
-		scales->SetNumberOfComponents(1);
+		scales->SetNumberOfComponents(3);
 		scales->SetName("Scales");
 		arrowPolyData->GetPointData()->AddArray(scales);
 
@@ -262,6 +282,24 @@ void VisualDebuggingLayer::Initialize(vtkSmartPointer<vtkRenderer> renderer)
 
 void VisualDebuggingLayer::Terminate()
 {
+#pragma region Point
+	if (nullptr != pointPolyData)
+	{
+		pointPolyData = nullptr;
+	}
+
+	if (nullptr != pointPolyDataMapper)
+	{
+		pointPolyDataMapper = nullptr;
+	}
+
+	if (nullptr != pointActor)
+	{
+		renderer->RemoveActor(pointActor);
+		pointActor = nullptr;
+	}
+#pragma endregion
+
 #pragma region Line
 	if (nullptr != linePolyData)
 	{
@@ -378,6 +416,7 @@ void VisualDebuggingLayer::Terminate()
 
 void VisualDebuggingLayer::Update()
 {
+	DrawPoints();
 	DrawLines();
 	DrawTriangle();
 	DrawSpheres();
@@ -397,16 +436,19 @@ void VisualDebuggingLayer::Clear()
 	Initialize(renderer);
 }
 
+void VisualDebuggingLayer::AddPoint(const Eigen::Vector3f& p, unsigned char r, unsigned char g, unsigned char b)
+{
+	pointInfosToDraw.push_back(std::make_tuple(p, r, g, b));
+}
+
 void VisualDebuggingLayer::AddLine(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1,
-	unsigned char r, unsigned char g,
-	unsigned char b)
+	unsigned char r, unsigned char g, unsigned char b)
 {
 	lineInfosToDraw.push_back(std::make_tuple(p0, p1, r, g, b));
 }
 
 void VisualDebuggingLayer::AddTriangle(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1,
-	const Eigen::Vector3f& p2, unsigned char r,
-	unsigned char g, unsigned char b)
+	const Eigen::Vector3f& p2, unsigned char r, unsigned char g, unsigned char b)
 {
 	triangleInfosToDraw.push_back(std::make_tuple(p0, p1, p2, r, g, b));
 }
@@ -435,6 +477,7 @@ void VisualDebuggingLayer::AddArrow(const Eigen::Vector3f& center, const Eigen::
 
 void VisualDebuggingLayer::ShowAll(bool show)
 {
+	ShowPoints(show);
 	ShowLines(show);
 	ShowTriangles(show);
 	ShowSpheres(show);
@@ -444,6 +487,7 @@ void VisualDebuggingLayer::ShowAll(bool show)
 
 void VisualDebuggingLayer::ToggleVisibilityAll()
 {
+	TogglePoints();
 	ToggleLines();
 	ToggleTriangles();
 	ToggleSpheres();
@@ -453,6 +497,7 @@ void VisualDebuggingLayer::ToggleVisibilityAll()
 
 void VisualDebuggingLayer::SetRepresentationAll(Representation representation)
 {
+	SetRepresentationPoints(representation);
 	SetRepresentationLines(representation);
 	SetRepresentationTriangles(representation);
 	SetRepresentationSpheres(representation);
@@ -462,11 +507,44 @@ void VisualDebuggingLayer::SetRepresentationAll(Representation representation)
 
 void VisualDebuggingLayer::ToggleAllRepresentation()
 {
+	TogglePointsRepresentation();
 	ToggleLinesRepresentation();
 	ToggleTrianglesRepresentation();
 	ToggleSpheresRepresentation();
 	ToggleCubesRepresentation();
 	ToggleArrowsRepresentation();
+}
+
+void VisualDebuggingLayer::ShowPoints(bool show)
+{
+	if (nullptr != pointActor)
+	{
+		ShowActor(renderer, pointActor, show);
+	}
+}
+
+void VisualDebuggingLayer::TogglePoints()
+{
+	if (nullptr != pointActor)
+	{
+		ToggleActorVisibility(renderer, pointActor);
+	}
+}
+
+void VisualDebuggingLayer::SetRepresentationPoints(Representation representation)
+{
+	if (nullptr != pointActor)
+	{
+		SetActorRepresentation(renderer, pointActor, representation);
+	}
+}
+
+void VisualDebuggingLayer::TogglePointsRepresentation()
+{
+	if (nullptr != pointActor)
+	{
+		ToggleActorRepresentation(renderer, pointActor);
+	}
 }
 
 void VisualDebuggingLayer::ShowLines(bool show)
@@ -627,6 +705,62 @@ void VisualDebuggingLayer::ToggleArrowsRepresentation()
 	{
 		ToggleActorRepresentation(renderer, arrowActor);
 	}
+}
+
+float VisualDebuggingLayer::GetPointSize()
+{
+	return pointActor->GetProperty()->GetPointSize();
+}
+
+void VisualDebuggingLayer::SetPointSize(float size)
+{
+	pointActor->GetProperty()->SetPointSize(size);
+}
+
+float VisualDebuggingLayer::GetLineWidth()
+{
+	return pointActor->GetProperty()->GetLineWidth();
+}
+
+void VisualDebuggingLayer::SetLineWidth(float width)
+{
+	lineActor->GetProperty()->SetLineWidth(width);
+}
+
+void VisualDebuggingLayer::DrawPoints()
+{
+	if (lineInfosToDraw.empty())
+		return;
+
+	vtkNew<vtkPoints> points;
+	vtkNew<vtkUnsignedCharArray> colors;
+	colors->SetNumberOfComponents(3);
+
+	for (auto& pointInfo : pointInfosToDraw)
+	{
+		auto p = std::get<0>(pointInfo);
+		auto r = std::get<1>(pointInfo);
+		auto g = std::get<2>(pointInfo);
+		auto b = std::get<3>(pointInfo);
+
+		unsigned char uc[3]{ r, g, b };
+		colors->InsertNextTypedTuple(uc);
+		colors->InsertNextTypedTuple(uc);
+	}
+
+	vtkSmartPointer<vtkPolyData> newPointPolyData =
+		vtkSmartPointer<vtkPolyData>::New();
+	newPointPolyData->SetPoints(points);
+	newPointPolyData->GetPointData()->SetScalars(colors);
+
+	vtkSmartPointer<vtkAppendPolyData> appendFilter =
+		vtkSmartPointer<vtkAppendPolyData>::New();
+	appendFilter->AddInputData(newPointPolyData);
+	appendFilter->Update();
+
+	pointPolyData->ShallowCopy(appendFilter->GetOutput());
+
+	pointInfosToDraw.clear();
 }
 
 void VisualDebuggingLayer::DrawLines()

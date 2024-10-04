@@ -184,6 +184,145 @@ void VisualDebugging::ToggleRepresentationByIndex(int index)
 	s_needToRender = true;
 }
 
+float VisualDebugging::GetPointSize(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetPointSize();
+	}
+	else
+	{
+		return 0.0f;
+	}
+}
+
+void VisualDebugging::SetPointSize(const string& layerName, float size)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		layer->SetPointSize(size);
+	}
+
+	s_needToRender = true;
+}
+
+float VisualDebugging::GetLineWidth(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetLineWidth();
+	}
+	else
+	{
+		return 0.0f;
+	}
+}
+
+void VisualDebugging::SetLineWidth(const string& layerName, float width)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		layer->SetLineWidth(width);
+	}
+
+	s_needToRender = true;
+}
+
+vtkSmartPointer<vtkActor> VisualDebugging::GetPointActor(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetPointActor();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+vtkSmartPointer<vtkActor> VisualDebugging::GetLineActor(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetLineActor();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+vtkSmartPointer<vtkActor> VisualDebugging::GetTriangleActor(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetTriangleActor();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+vtkSmartPointer<vtkActor> VisualDebugging::GetSphereActor(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetSphereActor();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+vtkSmartPointer<vtkActor> VisualDebugging::GetCubeActor(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetCubeActor();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+vtkSmartPointer<vtkActor> VisualDebugging::GetGlyphActor(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetGlyphActor();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+vtkSmartPointer<vtkActor> VisualDebugging::GetArrowActor(const string& layerName)
+{
+	auto layer = GetLayer(layerName);
+	if (nullptr != layer)
+	{
+		return layer->GetArrowActor();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
 int VisualDebugging::GetNumberOfLayers()
 {
 	return (int)s_layers.size();

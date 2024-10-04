@@ -9,55 +9,49 @@ int vtkQuantizingFilter::RequestData(vtkInformation* request,
     vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
     vtkPolyData* input = vtkPolyData::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-    vtkSmartPointer<vtkKdTreePointLocator> kdTree = vtkSmartPointer<vtkKdTreePointLocator>::New();
-    kdTree->SetDataSet(input);
-    kdTree->BuildLocator();
-
     auto points = input->GetPoints();
-    auto nop = input->GetNumberOfPoints();
-    for (size_t i = 0; i < nop; i++)
+
+    vtkNew<vtkPoints> newPoints;
+    newPoints->SetNumberOfPoints(imageWidth * imageHeight);
+    for (unsigned int h = 0; h < imageHeight; h++)
     {
-        auto point = points->GetPoint(i);
-        vtkSmartPointer<vtkIdList> result = vtkSmartPointer<vtkIdList>::New();
-        kdTree->FindPointsWithinRadius(0.5f, point, result);
-
-        std::vector<double> distances;
-        for (vtkIdType j = 0; j < result->GetNumberOfIds(); j++)
+        for (unsigned int w = 0; w < imageWidth; w++)
         {
-            vtkIdType neighborId = result->GetId(j);
-            double neighborPoint[3];
-            points->GetPoint(neighborId, neighborPoint);
+            float point[3];
+            point[0] = ((float)w - ((float)imageWidth * 0.5f)) * wInterval;
+            point[1] = ((float)h - ((float)imageHeight * 0.5f)) * hInterval;
+            point[2] = -1000;
 
-            double distance = sqrt(vtkMath::Distance2BetweenPoints(point, neighborPoint));
-            distances.push_back(distance);
-        }
-
-        std::sort(distances.begin(), distances.end());
-        double medianDistance = distances[distances.size() / 2];
-
-        //std::cout << "Point ID: " << i << " Median Distance: " << medianDistance << std::endl;
-
-        for (vtkIdType j = 0; j < result->GetNumberOfIds(); j++)
-        {
-            vtkIdType neighborId = result->GetId(j);
-            double neighborPoint[3];
-            points->GetPoint(neighborId, neighborPoint);
-
-            double distance = sqrt(vtkMath::Distance2BetweenPoints(point, neighborPoint));
-
-            //// If the distance exceeds the median, replace the point's coordinates with the query point's coordinates
-            //if (distance > medianDistance)
-            //{
-            //    points->SetPoint(neighborId, point); // Replace the point exceeding the median
-            //    //std::cout << "Replaced Point ID: " << neighborId << " Exceeds Median Distance." << std::endl;
-            //}
+            newPoints->SetPoint((vtkIdType)(h * imageWidth + w), point);
         }
     }
+
+    auto nop = points->GetNumberOfPoints();
+    for (size_t i = 0; i < nop; i++)
+    {
+        auto p = points->GetPoint(i);
+        auto x = p[0];
+        auto y = p[1];
+        auto z = p[2];
+
+        auto w = (unsigned int)(x / wInterval) + imageWidth / 2;
+        auto h = (unsigned int)(y / hInterval) + imageHeight / 2;
+
+        auto point = newPoints->GetPoint((vtkIdType)(h * imageWidth + w));
+        point[2] = z;
+        newPoints->SetPoint((vtkIdType)(h * imageWidth + w), point);
+    }
+
+    //input->SetPoints(newPoints);
+    //input->Modified();
 
     vtkInformation* outInfo = outputVector->GetInformationObject(0);
     vtkPolyData* output = vtkPolyData::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-    output->ShallowCopy(input);
+    output->SetPoints(newPoints);
+    output->Modified();
+
+    //output->ShallowCopy(input);
 
     return 1;
 }

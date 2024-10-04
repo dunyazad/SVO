@@ -58,6 +58,8 @@ public:
 	void Initialize(vtkSmartPointer<vtkRenderer> renderer);
 	void Terminate();
 
+	void AddPoint(const Eigen::Vector3f& p, unsigned char r, unsigned char g, unsigned char b);
+
 	void AddLine(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, unsigned char r, unsigned char g, unsigned char b);
 	
 	void AddTriangle(const Eigen::Vector3f& p0, const Eigen::Vector3f& p1, const Eigen::Vector3f& p2, unsigned char r, unsigned char g, unsigned char b);
@@ -77,6 +79,10 @@ public:
 	void ToggleVisibilityAll();
 	void SetRepresentationAll(Representation representation);
 	void ToggleAllRepresentation();
+	void ShowPoints(bool show);
+	void TogglePoints();
+	void SetRepresentationPoints(Representation representation);
+	void TogglePointsRepresentation();
 	void ShowLines(bool show);
 	void ToggleLines();
 	void SetRepresentationLines(Representation representation);
@@ -98,10 +104,27 @@ public:
 	void SetRepresentationArrows(Representation representation);
 	void ToggleArrowsRepresentation();
 
+	float GetPointSize();
+	void SetPointSize(float size);
+	float GetLineWidth();
+	void SetLineWidth(float width);
+
+	inline vtkSmartPointer<vtkActor> GetPointActor() { return pointActor; }
+	inline vtkSmartPointer<vtkActor> GetLineActor() { return lineActor; }
+	inline vtkSmartPointer<vtkActor> GetTriangleActor() { return triangleActor; }
+	inline vtkSmartPointer<vtkActor> GetSphereActor() { return sphereActor; }
+	inline vtkSmartPointer<vtkActor> GetCubeActor() { return cubeActor; }
+	inline vtkSmartPointer<vtkActor> GetGlyphActor() { return glyphActor; }
+	inline vtkSmartPointer<vtkActor> GetArrowActor() { return arrowActor; }
+
 private:
 	string layerName = "";
 	vtkSmartPointer<vtkRenderer> renderer;
 	vtkSmartPointer<vtkRenderWindow> renderWindow;
+
+	vtkSmartPointer<vtkActor> pointActor;
+	vtkSmartPointer<vtkPolyDataMapper> pointPolyDataMapper;
+	vtkSmartPointer<vtkPolyData> pointPolyData;
 
 	vtkSmartPointer<vtkActor> lineActor;
 	vtkSmartPointer<vtkPolyDataMapper> linePolyDataMapper;
@@ -128,6 +151,7 @@ private:
 	vtkSmartPointer<vtkGlyph3D> arrowGlyph3D;
 	vtkSmartPointer<vtkPolyData> arrowPolyData;
 
+	void DrawPoints();
 	void DrawLines();
 	void DrawTriangle();
 	void DrawSpheres();
@@ -135,6 +159,7 @@ private:
 	void DrawGlyphs();
 	void DrawArrows();
 
+	vector<std::tuple<Eigen::Vector3f, unsigned char, unsigned char, unsigned char>> pointInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, unsigned char, unsigned char,unsigned char>> lineInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f, unsigned char, unsigned char, unsigned char>> triangleInfosToDraw;
 	vector<std::tuple<Eigen::Vector3f, Eigen::Vector3f, Eigen::Vector3f, unsigned char, unsigned char, unsigned char>> sphereInfosToDraw;

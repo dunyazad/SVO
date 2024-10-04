@@ -20,7 +20,8 @@ void OnKeyPress(vtkObject* caller, long unsigned int eventId, void* clientData, 
 
     printf("%s\n", key.c_str());
 
-    if (key == "r") {
+    if (key == "r")
+	{
         std::cout << "Key 'r' was pressed. Resetting camera." << std::endl;
         vtkRenderer* renderer = static_cast<vtkRenderer*>(clientData);
 
@@ -34,10 +35,42 @@ void OnKeyPress(vtkObject* caller, long unsigned int eventId, void* clientData, 
 
         interactor->Render(); // Render after camera reset
     }
-    else if (key == "Escape") {
+    else if (key == "Escape")
+	{
         std::cout << "Key 'Escape' was pressed. Exiting." << std::endl;
         interactor->TerminateApp();
     }
+	else if (key == "space")
+	{
+		VisualDebugging::SetLineWidth("Spheres", 1);
+		vtkSmartPointer<vtkActor> actor = VisualDebugging::GetSphereActor("Spheres");
+		vtkSmartPointer<vtkMapper> mapper = actor->GetMapper();
+		vtkSmartPointer<vtkPolyDataMapper> polyDataMapper =
+			vtkPolyDataMapper::SafeDownCast(mapper);
+		vtkSmartPointer<vtkGlyph3DMapper> glyph3DMapper = vtkGlyph3DMapper::SafeDownCast(mapper);
+		vtkSmartPointer<vtkPolyData> polyData = vtkPolyData::SafeDownCast(glyph3DMapper->GetInputDataObject(0, 0));
+		vtkSmartPointer<vtkPointData> pointData = polyData->GetPointData();
+		vtkSmartPointer<vtkDoubleArray> scaleArray =
+			vtkDoubleArray::SafeDownCast(pointData->GetArray("Scales"));
+		for (vtkIdType i = 0; i < scaleArray->GetNumberOfTuples(); ++i)
+		{
+			double scale[3]; // Assuming 3-component scale array (X, Y, Z)
+			scaleArray->GetTuple(i, scale);
+			//std::cout << "Scale for point " << i << ": "
+			//	<< scale[0 ] << ", " << scale[1] << ", " << scale[2] << std::endl;
+			scale[0] *= 0.9;
+			scale[1] *= 0.9;
+			scale[2] *= 0.9;
+			scaleArray->SetTuple(i, scale);
+		}
+		polyData->Modified();
+		glyph3DMapper->SetScaleArray("Scales");
+		glyph3DMapper->Update();
+	}
+	else if (key == "1")
+	{
+		VisualDebugging::ToggleVisibility("Spheres");
+	}
 }
 
 class TimerCallback : public vtkCommand
@@ -408,14 +441,15 @@ int main() {
 
     auto inputPoints = ReadPLY("C:\\Resources\\Debug\\patches\\0.ply");
 
-    vtkSmartPointer<vtkMedianFilter> customFilter = vtkSmartPointer<vtkMedianFilter>::New();
-    customFilter->SetInputData(inputPoints);
-    customFilter->Update();
+    vtkSmartPointer<vtkQuantizingFilter> quantizingFilter = vtkSmartPointer<vtkQuantizingFilter>::New();
+	quantizingFilter->SetInputData(inputPoints);
+	quantizingFilter->Update();
 
     //auto inputPoints = ReadPLY("C:\\Resources\\Debug\\ZeroCrossingPoints.ply");
     {
         vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
         vertexFilter->SetInputData(inputPoints);
+		//vertexFilter->SetInputData(inputPoints);
         vertexFilter->Update();
 
         vtkSmartPointer<vtkPolyDataMapper> mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -423,7 +457,8 @@ int main() {
 
         vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
         actor->SetMapper(mapper);
-        actor->GetProperty()->SetColor(1.0, 1.0, 1.0);
+        actor->GetProperty()->SetColor(1.0, 0.0, 0.0);
+		actor->GetProperty()->SetPointSize(3);
 
         renderer->AddActor(actor);
     }
@@ -434,16 +469,30 @@ int main() {
     VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, (float)bounds[3], 0 }, 0, 255, 0);
     VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 0, (float)bounds[5] }, 0, 0, 255);
 
+	//for (size_t w = 0; w < 256; w++)
+	//{
+	//	VisualDebugging::AddLine("axes", { 0, 0, 0 }, { (float)bounds[1], 0, 0 }, 255, 255, 255);
+	//}
+
+	//for (size_t h = 0; h < 480; h++)
+	//{
+	//}
+
     {
-        for (size_t i = 0; i < inputPoints->GetNumberOfPoints(); i++)
+		auto points = quantizingFilter->GetOutput();
+		auto nop = points->GetNumberOfPoints();
+        for (size_t i = 0; i < nop; i++)
         {
-            auto p = inputPoints->GetPoint(i);
-            VisualDebugging::AddSphere(
-                "Spheres",
-                { (float)p[0], (float)p[1], (float)p[2] },
-                { 0.1f, 0.1f, 0.1f },
-                { 0, 0, 0 },
-                255, 255, 255);
+            auto p = points->GetPoint(i);
+			if (-1000 != p[2])
+			{
+				VisualDebugging::AddSphere(
+					"Spheres",
+					{ (float)p[0], (float)p[1], (float)p[2] },
+					{ 0.1f, 0.1f, 0.1f },
+					{ 0, 0, 0 },
+					255, 255, 255);
+			}
         }
     }
 

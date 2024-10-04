@@ -42,6 +42,19 @@ public:
 	static void ToggleRepresentation(const string& layerName);
 	static void ToggleRepresentationByIndex(int index);
 
+	static float GetPointSize(const string& layerName);
+	static void SetPointSize(const string& layerName, float size);
+	static float GetLineWidth(const string& layerName);
+	static void SetLineWidth(const string& layerName, float width);
+
+	static vtkSmartPointer<vtkActor> GetPointActor(const string& layerName);
+	static vtkSmartPointer<vtkActor> GetLineActor(const string& layerName);
+	static vtkSmartPointer<vtkActor> GetTriangleActor(const string& layerName);
+	static vtkSmartPointer<vtkActor> GetSphereActor(const string& layerName);
+	static vtkSmartPointer<vtkActor> GetCubeActor(const string& layerName);
+	static vtkSmartPointer<vtkActor> GetGlyphActor(const string& layerName);
+	static vtkSmartPointer<vtkActor> GetArrowActor(const string& layerName);
+
 	static int GetNumberOfLayers();
 
 private:
