@@ -9,6 +9,9 @@
 #include <App/CustomTrackballStyle.h>
 #include <App/Utility.h>
 
+#include <Algorithm/vtkMedianFilter.h>
+#include <Algorithm/vtkQuantizingFilter.h>
+
 #include <Debugging/VisualDebugging.h>
 
 void OnKeyPress(vtkObject* caller, long unsigned int eventId, void* clientData, void* callData) {
@@ -61,12 +64,323 @@ private:
     void animate() { VisualDebugging::Update(); }
 };
 
-
-struct SVONode
+#pragma region KDTree
+class KDTreeNode
 {
-    
+public:
+	KDTreeNode(unsigned int point_index) : point_index(point_index) {}
+
+	inline unsigned int GetPointIndex() const { return point_index; }
+
+private:
+	unsigned int point_index = UINT_MAX;
+	KDTreeNode* left = nullptr;
+	KDTreeNode* right = nullptr;
+
+public:
+	friend class KDTree;
 };
 
+class KDTree
+{
+public:
+	KDTree() : points(nullptr) {}
+	KDTree(float* points) : points(points) {}
+	~KDTree() { Clear(); }
+
+	void Clear()
+	{
+		if (nullptr != root)
+		{
+			ClearRecursive(root);
+			root = nullptr;
+		}
+
+		nearestNeighborNode = nullptr;
+		nearestNeighbor = UINT_MAX;
+		nearestNeighborDistance = FLT_MAX;
+	}
+
+	void Insert(unsigned int point_index)
+	{
+		root = InsertRecursive(root, point_index, 0);
+	}
+
+	unsigned int FindNearestNeighbor(const float* query)
+	{
+		/*			nearestNeighbor = root->point_index;
+
+					float* point = GetMappedPoint(root->point_index);
+
+					auto dx = point[0] - query[0];
+					auto dy = point[1] - query[1];
+					auto dz = point[2] - query[2];
+					nearestNeighborDistance = sqrtf(dx * dx + dy * dy + dz * dz);
+					nearestNeighborNode = root;
+					FindNearestNeighborRecursive(root, query, 0);
+					return nearestNeighbor;*/
+
+		nearestNeighbor = UINT_MAX;
+		nearestNeighborDistance = FLT_MAX;
+		nearestNeighborNode = root;
+		FindNearestNeighborRecursive(root, query, 0);
+		return nearestNeighborNode->point_index;
+	}
+
+	KDTreeNode* FindNearestNeighborNode(const float* query)
+	{
+		if (nullptr == root)
+			return nullptr;
+
+		nearestNeighbor = UINT_MAX;
+		nearestNeighborDistance = FLT_MAX;
+		nearestNeighborNode = root;
+		FindNearestNeighborRecursive(root, query, 0);
+		return nearestNeighborNode;
+	}
+
+	vector<unsigned int> RangeSearchSquaredDistance(const float* query, float squaredRadius)
+	{
+		vector<unsigned int> result;
+		RangeSearchRecursive(root, query, squaredRadius, result, 0);
+		return result;
+	}
+
+	inline bool IsEmpty() const { return nullptr == root; }
+
+	inline KDTreeNode* GetRootNode() { return root; }
+
+	inline float* GetPoint(unsigned int index)
+	{
+		if (nullptr == points) return nullptr;
+		else
+		{
+			if (numberOfPoints <= index) return nullptr;
+			else
+			{
+				return points + index * 3;
+			}
+		}
+	}
+
+	inline float* GetMappedPoint(unsigned int index)
+	{
+		if (nullptr == points) return nullptr;
+		else
+		{
+			if (indexMapping.size() <= index) return nullptr;
+			else
+			{
+				return points + indexMapping[index] * 3;
+			}
+		}
+	}
+
+	inline vector<unsigned int>& GetIndexMapping() { return indexMapping; }
+
+	inline void SetPoints(float* points, unsigned int nop)
+	{
+		this->points = points;
+		numberOfPoints = nop;
+		for (unsigned int i = 0; i < nop; i++)
+		{
+			indexMapping.push_back(i);
+		}
+	}
+
+	void Build()
+	{
+		if (0 != numberOfPoints)
+		{
+			root = BuildKDTree(0, numberOfPoints, 0);
+		}
+	}
+
+	void Traverse(KDTreeNode* node, function<void(KDTreeNode*)> callback)
+	{
+		if (nullptr != node)
+		{
+			callback(node);
+
+			if (nullptr != node->left) Traverse(node->left, callback);
+			if (nullptr != node->right) Traverse(node->right, callback);
+		}
+	}
+
+private:
+	float* points;
+	vector<unsigned int> indexMapping;
+	unsigned int numberOfPoints = 0;
+
+	KDTreeNode* root = nullptr;
+	mutable KDTreeNode* nearestNeighborNode = nullptr;
+	mutable unsigned int nearestNeighbor = UINT_MAX;
+	mutable float nearestNeighborDistance = FLT_MAX;
+
+	bool comparePoints(unsigned int i0, unsigned int i1, unsigned int dim) {
+		return GetMappedPoint(i0)[dim] < GetMappedPoint(i1)[dim];
+	}
+
+	KDTreeNode* BuildKDTree(unsigned int start, unsigned int end, unsigned int depth)
+	{
+		if (start >= end) {
+			return nullptr;
+		}
+
+		unsigned int dim = depth % 3;
+
+		std::sort(indexMapping.begin() + start, indexMapping.begin() + end,
+			[&](unsigned int a, unsigned int b) { return comparePoints(a, b, dim); });
+
+		unsigned int median = (start + end) / 2;
+		KDTreeNode* node = new KDTreeNode(indexMapping[median]);
+
+		node->left = BuildKDTree(start, median, depth + 1);
+		node->right = BuildKDTree(median + 1, end, depth + 1);
+
+		return node;
+	}
+
+	void ClearRecursive(KDTreeNode* node)
+	{
+		if (nullptr != node->left)
+		{
+			ClearRecursive(node->left);
+		}
+
+		if (nullptr != node->right)
+		{
+			ClearRecursive(node->right);
+		}
+
+		delete node;
+	}
+
+	KDTreeNode* InsertRecursive(KDTreeNode* node, unsigned int point_index, int depth)
+	{
+		if (node == nullptr)
+		{
+			auto newNode = new KDTreeNode(point_index);
+			return newNode;
+		}
+
+		int currentDimension = depth % 3;
+		float pointValue = GetMappedPoint(point_index)[currentDimension];
+		float nodeValue = GetMappedPoint(node->point_index)[currentDimension];
+
+		if (pointValue < nodeValue)
+		{
+			node->left = InsertRecursive(node->left, point_index, depth + 1);
+		}
+		else
+		{
+			node->right = InsertRecursive(node->right, point_index, depth + 1);
+		}
+
+		return node;
+	}
+
+	void FindNearestNeighborRecursive(KDTreeNode* node, const float* query, int depth)
+	{
+		if (node == nullptr)
+		{
+			return;
+		}
+
+		int currentDimension = depth % 3;
+
+		float* point = GetMappedPoint(node->point_index);
+
+		auto dx = point[0] - query[0];
+		auto dy = point[1] - query[1];
+		auto dz = point[2] - query[2];
+		float nodeDistance = sqrtf(dx * dx + dy * dy + dz * dz);
+		if (nodeDistance < nearestNeighborDistance)
+		{
+			nearestNeighborNode = node;
+			nearestNeighbor = node->point_index;
+			nearestNeighborDistance = nodeDistance;
+		}
+
+		auto queryValue = query[currentDimension];
+		auto nodeValue = GetMappedPoint(node->point_index)[currentDimension];
+
+		KDTreeNode* closerNode = nullptr;
+		KDTreeNode* otherNode = nullptr;
+
+		if (queryValue < nodeValue)
+		{
+			closerNode = node->left;
+			otherNode = node->right;
+		}
+		else
+		{
+			closerNode = node->right;
+			otherNode = node->left;
+		}
+
+		FindNearestNeighborRecursive(closerNode, query, depth + 1);
+
+		float planeDistance = queryValue - nodeValue;
+		if (planeDistance * planeDistance < nearestNeighborDistance) {
+			FindNearestNeighborRecursive(otherNode, query, depth + 1);
+		}
+	}
+
+	void RangeSearchRecursive(KDTreeNode* node, const float* query, float squaredRadius, std::vector<unsigned int>& result, int depth)
+	{
+		if (node == nullptr)
+		{
+			return;
+		}
+
+		float* point = GetMappedPoint(node->point_index);
+
+		auto dx = point[0] - query[0];
+		auto dy = point[1] - query[1];
+		auto dz = point[2] - query[2];
+		float nodeDistance = sqrtf(dx * dx + dy * dy + dz * dz);
+
+		if (nodeDistance <= squaredRadius)
+		{
+			result.push_back(node->point_index);
+		}
+
+		int currentDimension = depth % 3;
+		float queryValue = query[currentDimension];
+		float nodeValue = GetMappedPoint(node->point_index)[currentDimension];
+
+		KDTreeNode* closerNode = (queryValue < nodeValue) ? node->left : node->right;
+		KDTreeNode* otherNode = (queryValue < nodeValue) ? node->right : node->left;
+
+		RangeSearchRecursive(closerNode, query, squaredRadius, result, depth + 1);
+
+		float distanceToPlane = queryValue - nodeValue;
+		if (distanceToPlane * distanceToPlane <= squaredRadius)
+		{
+			RangeSearchRecursive(otherNode, query, squaredRadius, result, depth + 1);
+		}
+	}
+};
+
+float GetDistanceSquared(const float* points, unsigned int point_index, const float* query)
+{
+	float distanceSquared = 0.0f;
+	for (int i = 0; i < 3; ++i) {
+		float diff = points[point_index * 3 + i] - query[i];
+		distanceSquared += diff * diff;
+	}
+	return distanceSquared;
+}
+
+float GetDistance(const float* points, unsigned int point_index, const float* query)
+{
+	auto dx = points[point_index * 3] - query[0];
+	auto dy = points[point_index * 3 + 1] - query[1];
+	auto dz = points[point_index * 3 + 2] - query[2];
+	return sqrtf(dx * dx + dy * dy + dz * dz);
+}
+#pragma endregion
 
 int main() {
     openvdb::initialize();
@@ -90,14 +404,15 @@ int main() {
 
     VisualDebugging::Initialize(renderer);
 
-    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 100, 0, 0 }, 255, 0, 0);
-    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 100, 0 }, 0, 255, 0);
-    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 0, 100 }, 0, 0, 255);
-
     MaximizeVTKWindowOnMonitor(renderWindow, 2);
 
-    //auto inputPoints = ReadPLY("C:\\Resources\\Debug\\HD\\patch_1.ply");
-    auto inputPoints = ReadPLY("C:\\Resources\\Debug\\ZeroCrossingPoints.ply");
+    auto inputPoints = ReadPLY("C:\\Resources\\Debug\\patches\\0.ply");
+
+    vtkSmartPointer<vtkMedianFilter> customFilter = vtkSmartPointer<vtkMedianFilter>::New();
+    customFilter->SetInputData(inputPoints);
+    customFilter->Update();
+
+    //auto inputPoints = ReadPLY("C:\\Resources\\Debug\\ZeroCrossingPoints.ply");
     {
         vtkSmartPointer<vtkVertexGlyphFilter> vertexFilter = vtkSmartPointer<vtkVertexGlyphFilter>::New();
         vertexFilter->SetInputData(inputPoints);
@@ -113,11 +428,22 @@ int main() {
         renderer->AddActor(actor);
     }
 
+    auto bounds = inputPoints->GetBounds();
+
+    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { (float)bounds[1], 0, 0 }, 255, 0, 0);
+    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, (float)bounds[3], 0 }, 0, 255, 0);
+    VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 0, (float)bounds[5] }, 0, 0, 255);
+
     {
         for (size_t i = 0; i < inputPoints->GetNumberOfPoints(); i++)
         {
             auto p = inputPoints->GetPoint(i);
-            VisualDebugging::AddSphere("Spheres", { (float)p[0], (float)p[1], (float)p[2] }, { 1, 1, 1 }, { 0, 0, 0 }, 255, 255, 255);
+            VisualDebugging::AddSphere(
+                "Spheres",
+                { (float)p[0], (float)p[1], (float)p[2] },
+                { 0.1f, 0.1f, 0.1f },
+                { 0, 0, 0 },
+                255, 255, 255);
         }
     }
 

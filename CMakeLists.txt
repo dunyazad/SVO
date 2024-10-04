@@ -28,6 +28,10 @@ set(source_list
     src/App/CustomTrackballStyle.cpp
     src/App/Utility.h
     src/App/Utility.cpp
+    src/Algorithm/vtkMedianFilter.h
+    src/Algorithm/vtkMedianFilter.cpp
+    src/Algorithm/vtkQuantizingFilter.h
+    src/Algorithm/vtkQuantizingFilter.cpp
     src/Debugging/VisualDebugging.h
     src/Debugging/VisualDebugging.cpp
     src/Debugging/VisualDebuggingLayer.h

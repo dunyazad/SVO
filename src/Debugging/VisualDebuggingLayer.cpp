@@ -19,7 +19,7 @@ void VisualDebuggingLayer::Initialize(vtkSmartPointer<vtkRenderer> renderer)
 		linePolyDataMapper->SetScalarModeToUsePointData();
 		lineActor = vtkSmartPointer<vtkActor>::New();
 		lineActor->SetMapper(linePolyDataMapper);
-		// lineActor->GetProperty()->SetLineWidth(5);
+		lineActor->GetProperty()->SetLineWidth(5);
 		lineActor->SetObjectName(layerName + ".lineActor");
 
 		vtkNew<vtkPoints> points;

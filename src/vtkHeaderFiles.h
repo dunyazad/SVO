@@ -78,6 +78,9 @@
 #include <vtkVertexGlyphFilter.h>
 #include <vtkElevationFilter.h>
 #include <vtkAdaptiveSubdivisionFilter.h>
+#include <vtkSmoothPolyDataFilter.h>
+#include <vtkWindowedSincPolyDataFilter.h>
+#include <vtkKdTreePointLocator.h>
 #include <vtkLinearExtrusionFilter.h>
 #include <vtkContourFilter.h>
 #include <vtkCellLocator.h>

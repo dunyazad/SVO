@@ -3,4 +3,4 @@
 #include <stdHeaderFiles.h>
 #include <vtkHeaderFiles.h>
 
-typedef unsigned char byte;
+typedef unsigned char ubyte;
