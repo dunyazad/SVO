@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vtkObjectFactory.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkInteractorStyleTrackballCamera.h>

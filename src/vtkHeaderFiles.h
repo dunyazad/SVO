@@ -8,6 +8,7 @@
 #include <vtkTransform.h>
 
 #include <vtkCommand.h>
+#include <vtkCallbackCommand.h>
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkGenericOpenGLRenderWindow.h>
@@ -74,6 +75,7 @@
 
 
 #include <vtkPolyDataConnectivityFilter.h>
+#include <vtkVertexGlyphFilter.h>
 #include <vtkElevationFilter.h>
 #include <vtkAdaptiveSubdivisionFilter.h>
 #include <vtkLinearExtrusionFilter.h>
@@ -87,3 +89,4 @@
 #include <vtkSTLWriter.h>
 #include <vtkOBJReader.h>
 #include <vtkPLYReader.h>
+#include <vtkPLYWriter.h>

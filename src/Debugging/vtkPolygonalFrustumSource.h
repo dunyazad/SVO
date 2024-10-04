@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef vtkPolygonalFrustumSource_h
 #define vtkPolygonalFrustumSource_h
 
