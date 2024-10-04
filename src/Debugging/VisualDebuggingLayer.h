@@ -1,12 +1,9 @@
 #pragma once
 
-#include <vtkHeaderFiles.h>
+#include <Common.h>
+
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
-
-#include <string>
-#include <vector>
-using namespace std;
 
 enum Representation { HPoints, HWireFrame, HSurface };
 

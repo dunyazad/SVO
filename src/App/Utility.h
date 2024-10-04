@@ -1,12 +1,6 @@
 #pragma once
 
-#include <stdHeaderFiles.h>
-#include <vtkHeaderFiles.h>
-
-#include <chrono>
-#include <string>
-#include <sstream>
-using namespace std;
+#include <Common.h>
 
 string Miliseconds(const chrono::steady_clock::time_point beginTime, const char* tag = nullptr);
 #define TS(name) auto time_##name = chrono::high_resolution_clock::now()();

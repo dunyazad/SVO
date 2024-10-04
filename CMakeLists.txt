@@ -21,6 +21,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_SOURCE_DIR}/bin/Release)
 
 set(source_list
     src/main.cpp
+    src/Common.h
     src/stdHeaderFiles.h
     src/vtkHeaderFiles.h
     src/App/CustomTrackballStyle.h

@@ -1,5 +1,4 @@
-#include <stdHeaderFiles.h>
-#include <vtkHeaderFiles.h>
+#include <Common.h>
 
 #include <openvdb/openvdb.h>
 
@@ -12,7 +11,6 @@
 
 #include <Debugging/VisualDebugging.h>
 
-// Key press event handler function
 void OnKeyPress(vtkObject* caller, long unsigned int eventId, void* clientData, void* callData) {
     vtkRenderWindowInteractor* interactor = static_cast<vtkRenderWindowInteractor*>(caller);
     std::string key = interactor->GetKeySym(); // Get the key symbol pressed
@@ -64,11 +62,16 @@ private:
 };
 
 
+struct SVONode
+{
+    
+};
+
+
 int main() {
     openvdb::initialize();
 
-    // Maximize console window on 3rd monitor
-    MaximizeConsoleWindowOnMonitor(1); // Monitor index starts from 0
+    MaximizeConsoleWindowOnMonitor(1);
 
     vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
     renderer->SetBackground(0.3, 0.5, 0.7);
@@ -91,10 +94,8 @@ int main() {
     VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 100, 0 }, 0, 255, 0);
     VisualDebugging::AddLine("axes", { 0, 0, 0 }, { 0, 0, 100 }, 0, 0, 255);
 
-    // Maximize VTK rendering window on 2nd monitor
-    MaximizeVTKWindowOnMonitor(renderWindow, 2); // Monitor index starts from 0
+    MaximizeVTKWindowOnMonitor(renderWindow, 2);
 
-    // Read the input points from a PLY file
     //auto inputPoints = ReadPLY("C:\\Resources\\Debug\\HD\\patch_1.ply");
     auto inputPoints = ReadPLY("C:\\Resources\\Debug\\ZeroCrossingPoints.ply");
     {
@@ -120,10 +121,9 @@ int main() {
         }
     }
 
-    // Create a key press event handler
     vtkSmartPointer<vtkCallbackCommand> keyPressCallback = vtkSmartPointer<vtkCallbackCommand>::New();
     keyPressCallback->SetCallback(OnKeyPress);
-    keyPressCallback->SetClientData(renderer); // Pass the renderer to the callback
+    keyPressCallback->SetClientData(renderer);
 
     vtkSmartPointer<TimerCallback> timerCallback = vtkSmartPointer<TimerCallback>::New();
 
@@ -133,7 +133,6 @@ int main() {
         std::cerr << "Error: Timer was not created!" << std::endl;
     }
 
-    // Add the observer to the interactor to listen for key presses
     interactor->AddObserver(vtkCommand::KeyPressEvent, keyPressCallback);
 
     renderWindow->Render();
